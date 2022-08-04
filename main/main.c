@@ -26,8 +26,8 @@
  * @brief WIFI_SECOND_CHAN_BELOW, WIFI_SECOND_CHAN_NONE, WIFI_SECOND_CHAN_ABOVE
  * 
  */
-#define SECOND_CHANNEL WIFI_SECOND_CHAN_BELOW
-#define CONFIG_LESS_INTERFERENCE_CHANNEL 5
+#define SECOND_CHANNEL WIFI_SECOND_CHAN_NONE
+#define CONFIG_LESS_INTERFERENCE_CHANNEL 2
 #define CONFIG_SEND_FREQUENCY 100
 
 //static const uint8_t CONFIG_CSI_SEND_MAC[] = {0x1a, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -104,13 +104,13 @@ static void wifi_csi_rx_cb(void *ctx, wifi_csi_info_t *info)
      * 
      */
     printf("CSI_RIG," MACSTR ",%d,%d,%d,%d,%d,%d\n", MAC2STR(info->mac),rx_ctrl->channel, rx_ctrl->secondary_channel, rx_ctrl->sig_mode, rx_ctrl->cwb, rx_ctrl->stbc, info->len);
-#endif
-
+#else
     if (!s_count)
     {
         ESP_LOGI(TAG, "================ CSI RECV ================");
         ets_printf("type,id,mac,rssi,rate,sig_mode,mcs,bandwidth,smoothing,not_sounding,aggregation,stbc,fec_coding,sgi,noise_floor,ampdu_cnt,channel,secondary_channel,local_timestamp,ant,sig_len,rx_state,len,first_word,data\n");
     }
+    ets_printf("CSI_DATA,%d," MACSTR ",%d\n", s_count++, MAC2STR(info->mac), rx_ctrl->rssi);
 
     ets_printf("CSI_DATA,%d," MACSTR ",%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
                s_count++, MAC2STR(info->mac), rx_ctrl->rssi, rx_ctrl->rate, rx_ctrl->sig_mode,
@@ -127,6 +127,7 @@ static void wifi_csi_rx_cb(void *ctx, wifi_csi_info_t *info)
     }
 
     ets_printf("]\"\n");
+#endif
 }
 #if ENABLE_PROMISCOUS_PRINT
 void promi_cb(void *buff, wifi_promiscuous_pkt_type_t type)
@@ -159,6 +160,8 @@ void promi_cb(void *buff, wifi_promiscuous_pkt_type_t type)
     printf("Sender MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\n", Header->addr2[0], Header->addr2[1], Header->addr2[2], Header->addr2[3], Header->addr2[4], Header->addr2[5]);
     // printf("Filter MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\n", Header->addr3[0], Header->addr3[1], Header->addr3[2], Header->addr3[3], Header->addr3[4], Header->addr3[5]);
 
+    printf("Subtype: %d\n", Header->subtype[0]);
+
     printf("RX: %d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n\n",
            rx_ctrl->rssi, rx_ctrl->rate, rx_ctrl->sig_mode,
            rx_ctrl->mcs, rx_ctrl->cwb, rx_ctrl->smoothing, rx_ctrl->not_sounding,
@@ -169,7 +172,7 @@ void promi_cb(void *buff, wifi_promiscuous_pkt_type_t type)
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // Display Valid Frames only
     //
-    if (PayloadPacket->rx_ctrl.sig_mode > 0)
+    /*if (PayloadPacket->rx_ctrl.sig_mode > 0)
     {
         printf("Rx Data packet from %s to %s\n", MacAddTx, MacAddRx);
         for (int i = 0; i < PayloadPacket->rx_ctrl.sig_len; i++)
@@ -181,7 +184,7 @@ void promi_cb(void *buff, wifi_promiscuous_pkt_type_t type)
                rx_ctrl->noise_floor, rx_ctrl->ampdu_cnt, rx_ctrl->channel, rx_ctrl->secondary_channel,
                rx_ctrl->timestamp, rx_ctrl->ant, rx_ctrl->sig_len, rx_ctrl->rx_state);
         printf("\n\n");
-    }
+    }*/
     ///////////////////////////////////////////////////////////////////////////////////////////////
 }
 #endif
@@ -215,7 +218,14 @@ void changeChannels(void *pvParameters)
 
 static void wifi_csi_init()
 {
-    //ESP_ERROR_CHECK(esp_wifi_set_promiscuous_rx_cb(promi_cb));
+#if ENABLE_PROMISCOUS_PRINT
+    ESP_ERROR_CHECK(esp_wifi_set_promiscuous_rx_cb(promi_cb));
+#endif
+
+    /**
+     * @brief Set to Promiscous mode to enable "monitoring"
+     * 
+     */
     ESP_ERROR_CHECK(esp_wifi_set_promiscuous(true));
 
     /**< default config */
